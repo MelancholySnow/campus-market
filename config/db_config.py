@@ -123,7 +123,6 @@ def init_database():
 
         conn.commit()
 
-        # 兼容旧表：尝试添加 stock 列（忽略已存在的错误）
         try:
             cursor.execute("ALTER TABLE goods ADD COLUMN stock INTEGER DEFAULT 1")
             conn.commit()
