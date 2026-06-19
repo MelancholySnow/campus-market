@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - 校园二手交易平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .nav-bg{background-color: #198754;}
+        .tab-item{cursor:pointer;}
+        .tab-active{border-bottom:3px solid #198754;color:#198754;}
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark nav-bg">
+    <div class="container">
+        <a class="navbar-brand" href="index.html">校园二手交易平台</a>
+        <ul class="navbar-nav me-auto">
+            <li class="nav-item"><a class="nav-link" href="index.html">首页</a></li>
+            <li class="nav-item"><a class="nav-link" href="publish.html">发布闲置</a></li>
+            <li class="nav-item"><a class="nav-link" href="cart.html">购物车</a></li>
+            <li class="nav-item"><a class="nav-link" href="order.html">我的订单</a></li>
+            <li class="nav-item"><a class="nav-link active" href="user.html">个人中心</a></li>
+        </ul>
+        <span class="navbar-text text-white me-3">欢迎：<span id="nick"></span></span>
+        <button class="btn btn-outline-light btn-sm me-2" onclick="showEditProfile()">编辑资料</button>
+        <button class="btn btn-outline-light btn-sm me-2" onclick="showChangePassword()">修改密码</button>
+        <button class="btn btn-outline-light btn-sm" onclick="logout()">退出登录</button>
+    </div>
+</nav>
+
+<div class="container mt-5">
+    <div class="d-flex fs-5 border-bottom">
+        <div class="me-5 py-2 tab-item tab-active" onclick="changeTab(1)">我的发布</div>
+        <div class="me-5 py-2 tab-item" onclick="changeTab(2)">我的收藏</div>
+        <div class="me-5 py-2 tab-item" onclick="changeTab(3)">我的订单</div>
+        <div class="me-5 py-2 tab-item" onclick="changeTab(4)">我的消息</div>
+    </div>
+
+    <div id="tab1" class="mt-4">
+        <div id="publishBody"></div>
+    </div>
+    <div id="tab2" class="mt-4 d-none">
+        <div id="collectBody"></div>
+    </div>
+    <div id="tab3" class="mt-4 d-none">
+        <div id="orderBody"></div>
+    </div>
+    <div id="tab4" class="mt-4 d-none">
+        <!-- 对话列表视图 -->
+        <div id="conversationListView">
+            <h5 class="mb-3">📨 我的对话</h5>
+            <div id="conversationBody"></div>
+        </div>
+        <!-- 聊天详情视图 -->
+        <div id="chatDetailView" class="d-none">
+            <button class="btn btn-sm btn-outline-secondary mb-3" onclick="backToConversations()">← 返回对话列表</button>
+            <h5>💬 与 <span id="chatPartnerName"></span> 的对话</h5>
+            <div id="chatHistoryBody" class="border rounded p-3 mb-3" style="max-height:400px;overflow-y:auto;background:#f8f9fa;"></div>
+            <div class="input-group">
+                <input type="text" id="chatInput" class="form-control" placeholder="输入消息...">
+                <button class="btn btn-success" id="sendChatBtn">发送</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑资料弹窗 -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#198754;color:#fff;">
+        <h5 class="modal-title">✏️ 编辑个人资料</h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label">学号（不可修改）</label>
+            <input type="text" class="form-control" id="editUsername" disabled>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">昵称</label>
+            <input type="text" class="form-control" id="editNickname" placeholder="请输入新昵称">
+        </div>
+        <button id="saveProfileBtn" class="btn btn-success w-100">保存修改</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 修改密码弹窗 -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#198754;color:#fff;">
+        <h5 class="modal-title">🔒 修改密码</h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label">旧密码</label>
+            <input type="password" class="form-control" id="oldPassword" placeholder="请输入旧密码">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">新密码</label>
+            <input type="password" class="form-control" id="newPassword" placeholder="8-32位，需含大小写/数字/特殊字符中至少三类">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">确认新密码</label>
+            <input type="password" class="form-control" id="confirmPassword" placeholder="请再次输入新密码">
+        </div>
+        <button id="savePasswordBtn" class="btn btn-success w-100">确认修改</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 回复消息弹窗 -->
+<div class="modal fade" id="replyModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#198754;color:#fff;">
+        <h5 class="modal-title">💬 回复 <span id="replyToName"></span></h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 text-muted small">对方说：<span id="replyOriginContent"></span></div>
+        <textarea id="replyContent" class="form-control mb-3" rows="4" placeholder="输入回复内容..."></textarea>
+        <button id="sendReplyBtn" class="btn btn-success w-100">发送回复</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="common.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    window.onload = function(){
+        if(!currentUser){
+            alert("请先登录");
+            window.location.href = "login.html";
+            return;
+        }
+        document.getElementById("nick").innerText = currentUser.nickname;
+        renderPublish();
+        renderCollect();
+        renderOrders();
+        renderMessages();
+    }
+
+    function changeTab(num){
+        document.querySelectorAll(".tab-item").forEach((el,idx)=>{
+            el.classList.remove("tab-active");
+            if(idx == num-1) el.classList.add("tab-active");
+        })
+        document.getElementById("tab1").classList.add("d-none");
+        document.getElementById("tab2").classList.add("d-none");
+        document.getElementById("tab3").classList.add("d-none");
+        document.getElementById("tab4").classList.add("d-none");
+        document.getElementById("tab"+num).classList.remove("d-none");
+    }
+
+    async function renderPublish(){
+        let list = await getMyPublish(currentUser.id);
+        let html = "";
+        if(!list || list.length === 0){
+            html = '<div class="alert alert-info">你还没有发布任何闲置</div>';
+        }else{
+            list.forEach(item=>{
+                html += `
+                <div class="row border py-3 align-items-center">
+                    <div class="col-md-2"><img src="${resolveImgUrl(item.img)}" style="width:80px;height:80px;object-fit:cover;"></div>
+                    <div class="col-md-3">${item.name}</div>
+                    <div class="col-md-2 text-danger">¥${item.price}</div>
+                    <div class="col-md-3">${item.description}</div>
+                    <div class="col-md-2">
+                        <button class="btn btn-sm btn-danger" onclick="delPub(${item.id})">删除</button>
+                    </div>
+                </div>
+                `;
+            })
+        }
+        document.getElementById("publishBody").innerHTML = html;
+    }
+
+    async function renderCollect(){
+        let list = await getCollectList(currentUser.id);
+        let html = "";
+        if(!list || list.length === 0){
+            html = '<div class="alert alert-info">暂无收藏商品</div>';
+        }else{
+            list.forEach(item=>{
+                let timeStr = item.createTime || '';
+                html += `
+                <div class="row border py-3 align-items-center">
+                    <div class="col-md-2">
+                        <a href="detail.html?id=${item.goodsId}">
+                            <img src="${resolveImgUrl(item.goods.img)}" style="width:80px;height:80px;object-fit:cover;">
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="detail.html?id=${item.goodsId}" class="text-decoration-none">${item.goods.name}</a>
+                    </div>
+                    <div class="col-md-1 text-danger">¥${item.goods.price}</div>
+                    <div class="col-md-2 text-muted small">${timeStr}</div>
+                    <div class="col-md-2">
+                        <button class="btn btn-sm btn-outline-danger" onclick="unCollect(${item.userId},${item.goodsId})">取消收藏</button>
+                    </div>
+                </div>
+                `;
+            })
+        }
+        document.getElementById("collectBody").innerHTML = html;
+    }
+
+    async function delPub(id){
+        let res = await delGoods(id);
+        if(res.code === 200){
+            alert("删除成功");
+            renderPublish();
+        } else {
+            alert(res.msg || "删除失败");
+        }
+    }
+
+    async function unCollect(userId,goodsId){
+        await cancelCollect(userId,goodsId);
+        renderCollect();
+    }
+
+    // ========== 我的订单 ==========
+    async function renderOrders(){
+        let list = await getOrderList(currentUser.id);
+        let html = "";
+        if(!list || list.length === 0){
+            html = '<div class="alert alert-info">暂无订单信息，去<a href="order.html" class="alert-link">订单管理</a>查看</div>';
+        }else{
+            list.forEach(order => {
+                let statusClass = order.status === '已退款' ? 'text-secondary' : 'text-primary';
+                let timeStr = (order.createTime || '').substring(0, 16);
+                let itemsHtml = order.items.map(item =>
+                    `<span class="badge bg-light text-dark me-1">${item.goodsName} ×${item.count} (¥${item.goodsPrice})</span>`
+                ).join('');
+                html += `
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between">
+                        <span>订单号：${order.orderNo}</span>
+                        <span class="${statusClass} fw-bold">${order.status}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">${itemsHtml}</div>
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">${timeStr}</small>
+                            <div>
+                                <strong class="text-danger me-2">合计：¥${order.totalPrice}</strong>
+                                ${order.status === '已支付' ? `<button class="btn btn-sm btn-outline-danger me-1" onclick="reqReturn(${order.id})">申请退款</button>` : ''}
+                                <button class="btn btn-sm btn-outline-secondary" onclick="viewReturnStatus(${order.id})">退货状态</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+        }
+        document.getElementById("orderBody").innerHTML = html;
+    }
+
+    async function reqReturn(orderId){
+        let reason = prompt("请输入退货理由（至少5个字）：");
+        if(!reason || reason.trim().length < 5){
+            alert("退货理由至少5个字，请重新操作");
+            return;
+        }
+        try {
+            let res = await requestReturn(currentUser.id, orderId, reason.trim());
+            alert(res.msg);
+            if(res.code === 200) renderOrders();
+        } catch(e){
+            alert(e.userMessage || "申请失败");
+        }
+    }
+
+    async function viewReturnStatus(orderId){
+        let result = await checkReturnStatus(orderId, currentUser.id);
+        if(result){
+            let statusText = result.status === 'pending' ? '⏳ 待审核' : result.status === 'approved' ? '✅ 已同意' : '❌ 已拒绝';
+            let msg = `退货状态：${statusText}\n\n退货理由：${result.reason}`;
+            if(result.sellerReply) msg += `\n卖家回复：${result.sellerReply}`;
+            alert(msg);
+        } else {
+            alert("该订单暂无退货申请");
+        }
+    }
+
+    // ========== 消息模块（对话列表 + 聊天记录） ==========
+    let currentChatPartner = null; // 当前聊天对象
+    let currentChatPartnerName = null;
+
+    async function renderMessages(){
+        await renderConversations();
+    }
+
+    async function renderConversations(){
+        let list = await getConversations(currentUser.id);
+        let html = "";
+        if(!list || list.length === 0){
+            html = '<div class="alert alert-info">暂无对话，去商品详情页联系卖家吧</div>';
+        }else{
+            list.forEach(conv => {
+                let unreadBadge = (conv.unreadCount && conv.unreadCount > 0)
+                    ? `<span class="badge bg-danger ms-2">${conv.unreadCount}条新消息</span>` : '';
+                let goodsTag = conv.goodsName ? `<span class="badge bg-secondary me-2">📦${conv.goodsName}</span>` : '';
+                let timeStr = (conv.lastTime || '').substring(0, 16);
+                let isMe = conv.lastFromUserId == currentUser.id;
+                let preview = isMe ? '我: ' + (conv.lastContent || '') : (conv.lastContent || '');
+                if(preview.length > 30) preview = preview.substring(0, 30) + '...';
+
+                html += `
+                <div class="card mb-2 ${(conv.unreadCount && conv.unreadCount > 0) ? 'border-danger' : ''}"
+                     style="cursor:pointer;" onclick="openChat(${conv.partnerId}, '${(conv.partnerName || '').replace(/'/g, "\\'")}')">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>${conv.partnerName || '用户' + conv.partnerId}</strong>${unreadBadge}
+                            <small class="text-muted">${timeStr}</small>
+                        </div>
+                        <div class="mt-1 text-muted small">${goodsTag}${preview}</div>
+                    </div>
+                </div>`;
+            });
+        }
+        document.getElementById("conversationBody").innerHTML = html;
+    }
+
+    async function openChat(partnerId, partnerName){
+        currentChatPartner = partnerId;
+        currentChatPartnerName = partnerName;
+        document.getElementById("chatPartnerName").innerText = partnerName || ('用户' + partnerId);
+        document.getElementById("conversationListView").classList.add("d-none");
+        document.getElementById("chatDetailView").classList.remove("d-none");
+        await renderChatHistory();
+    }
+
+    async function renderChatHistory(){
+        if(!currentChatPartner) return;
+        let messages = await getChatHistory(currentUser.id, currentChatPartner);
+        let html = "";
+        if(!messages || messages.length === 0){
+            html = '<div class="text-center text-muted py-4">暂无聊天记录，发送第一条消息吧</div>';
+        }else{
+            messages.forEach(msg => {
+                let isMine = msg.fromUserId == currentUser.id;
+                let align = isMine ? 'text-end' : 'text-start';
+                let bgColor = isMine ? 'bg-success text-white' : 'bg-white';
+                let senderName = isMine ? '我' : (msg.fromUserName || '对方');
+                let timeStr = (msg.createTime || '').substring(0, 16);
+                html += `
+                <div class="mb-2 ${align}">
+                    <small class="text-muted">${senderName} · ${timeStr}</small>
+                    <div class="d-inline-block p-2 rounded ${bgColor}" style="max-width:70%;word-break:break-word;">
+                        ${msg.content}
+                    </div>
+                </div>`;
+            });
+        }
+        let body = document.getElementById("chatHistoryBody");
+        body.innerHTML = html;
+        // 滚动到底部
+        body.scrollTop = body.scrollHeight;
+    }
+
+    function backToConversations(){
+        currentChatPartner = null;
+        currentChatPartnerName = null;
+        document.getElementById("conversationListView").classList.remove("d-none");
+        document.getElementById("chatDetailView").classList.add("d-none");
+        renderConversations();
+    }
+
+    // 发送聊天消息
+    document.getElementById("sendChatBtn").addEventListener('click', async () => {
+        if(!currentChatPartner){
+            alert("请先选择对话对象");
+            return;
+        }
+        let content = document.getElementById("chatInput").value.trim();
+        if(!content){
+            alert("请输入消息内容");
+            return;
+        }
+        let data = {
+            fromUserId: currentUser.id,
+            toUserId: currentChatPartner,
+            content: content
+        };
+        let res = await sendMessage(data);
+        if(res.code === 200){
+            document.getElementById("chatInput").value = "";
+            await renderChatHistory();
+        } else {
+            alert(res.msg);
+        }
+    });
+
+    // 回车发送消息
+    document.getElementById("chatInput").addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){
+            document.getElementById("sendChatBtn").click();
+        }
+    });
+
+    // ========== 编辑资料 ==========
+    function showEditProfile(){
+        document.getElementById("editUsername").value = currentUser.username;
+        document.getElementById("editNickname").value = currentUser.nickname || '';
+        new bootstrap.Modal(document.getElementById("editProfileModal")).show();
+    }
+
+    document.getElementById("saveProfileBtn").addEventListener('click', async () => {
+        let nickname = document.getElementById("editNickname").value.trim();
+        if(!nickname){
+            alert("昵称不能为空");
+            return;
+        }
+        let res = await updateProfile(currentUser.id, nickname);
+        if(res.code === 200){
+            // 更新本地存储
+            currentUser.nickname = nickname;
+            saveUser(currentUser);
+            document.getElementById("nick").innerText = nickname;
+            bootstrap.Modal.getInstance(document.getElementById("editProfileModal")).hide();
+            alert(res.msg);
+        } else {
+            alert(res.msg);
+        }
+    });
+
+    // ========== 修改密码 ==========
+    function showChangePassword(){
+        document.getElementById("oldPassword").value = "";
+        document.getElementById("newPassword").value = "";
+        document.getElementById("confirmPassword").value = "";
+        new bootstrap.Modal(document.getElementById("changePasswordModal")).show();
+    }
+
+    document.getElementById("savePasswordBtn").addEventListener('click', async () => {
+        let oldPwd = document.getElementById("oldPassword").value;
+        let newPwd = document.getElementById("newPassword").value;
+        let confirmPwd = document.getElementById("confirmPassword").value;
+
+        if(!oldPwd){
+            alert("请输入旧密码");
+            return;
+        }
+        if(!newPwd){
+            alert("请输入新密码");
+            return;
+        }
+        if(newPwd !== confirmPwd){
+            alert("两次输入的新密码不一致");
+            return;
+        }
+
+        let res = await changePassword(currentUser.id, oldPwd, newPwd);
+        if(res.code === 200){
+            bootstrap.Modal.getInstance(document.getElementById("changePasswordModal")).hide();
+            alert(res.msg);
+        } else {
+            alert(res.msg);
+        }
+    });
+</script>
+</body>
+</html>

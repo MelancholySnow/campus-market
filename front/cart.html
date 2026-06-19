@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>购物车 - 校园二手交易平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .nav-bg{background-color: #198754;}
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark nav-bg">
+    <div class="container">
+        <a class="navbar-brand" href="index.html">校园二手交易平台</a>
+        <ul class="navbar-nav me-auto">
+            <li class="nav-item"><a class="nav-link" href="index.html">首页</a></li>
+            <li class="nav-item"><a class="nav-link" href="publish.html">发布闲置</a></li>
+            <li class="nav-item"><a class="nav-link active" href="cart.html">购物车</a></li>
+            <li class="nav-item"><a class="nav-link" href="order.html">我的订单</a></li>
+            <li class="nav-item"><a class="nav-link" href="user.html">个人中心</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container mt-5">
+    <h4 class="mb-4">我的购物车</h4>
+    <div id="cartBody"></div>
+    <div class="mt-4 h5">合计：<span class="text-danger" id="totalPrice">¥0</span></div>
+    <button class="btn btn-success mt-3" id="submitOrderBtn" onclick="handleSubmitOrder()">提交订单结算</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="common.js"></script>
+<script>
+    let cartData = [];
+
+    window.onload = function(){
+        if(!currentUser){
+            alert("请先登录");
+            window.location.href = "login.html";
+            return;
+        }
+        loadCart();
+    }
+
+    async function loadCart(){
+        cartData = await getCartList(currentUser.id);
+        let html = "";
+        let total = 0;
+
+        if(!cartData || cartData.length === 0){
+            html = '<div class="alert alert-info">购物车暂无商品</div>';
+        }else{
+            cartData.forEach((item,index)=>{
+                total += item.goods.price * item.count;
+                let timeStr = item.createTime || '';
+                let stock = item.goods.stock || 99;
+                let atMax = item.count >= stock;
+                let atMin = item.count <= 1;
+                html += `
+                <div class="row border py-3 align-items-center">
+                    <div class="col-md-2">
+                        <a href="detail.html?id=${item.goodsId}">
+                            <img src="${resolveImgUrl(item.goods.img)}" style="width:80px;height:80px;object-fit:cover;">
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="detail.html?id=${item.goodsId}" class="text-decoration-none">${item.goods.name}</a>
+                    </div>
+                    <div class="col-md-1 text-danger">¥${item.goods.price}</div>
+                    <div class="col-md-2">
+                        <button class="btn btn-sm btn-outline-dark" onclick="changeCount(${index},-1)" ${atMin ? 'disabled' : ''}>-</button>
+                        <span class="mx-2">${item.count}</span>
+                        <button class="btn btn-sm btn-outline-dark" onclick="changeCount(${index},1)" ${atMax ? 'disabled' : ''}>+</button>
+                        <small class="d-block text-muted mt-1">库存 ${stock} 件</small>
+                    </div>
+                    <div class="col-md-2 text-muted small">${timeStr}</div>
+                    <div class="col-md-2">
+                        <button class="btn btn-sm btn-danger" onclick="delCart(${index})">删除</button>
+                    </div>
+                </div>
+                `;
+            })
+        }
+        document.getElementById("cartBody").innerHTML = html;
+        document.getElementById("totalPrice").innerText = `¥${total}`;
+    }
+
+    async function changeCount(index,num){
+        let item = cartData[index];
+        let newCount = item.count + num;
+        if(newCount < 1) newCount = 1;
+        let stock = item.goods.stock || 99;
+        if(newCount > stock) newCount = stock;
+        if(newCount === item.count) return;
+        item.count = newCount;
+        try {
+            await updateCartCount(item.id, item.count);
+        } catch(e) {}
+        loadCart();
+    }
+
+    async function delCart(index){
+        await delCartItem(cartData[index].id);
+        loadCart();
+    }
+
+    async function handleSubmitOrder(){
+        if(!cartData || cartData.length === 0){
+            alert("购物车为空，无法提交订单");
+            return;
+        }
+        if(!confirm(`确认提交订单？合计 ¥${document.getElementById("totalPrice").innerText.replace('¥','')}`)){
+            return;
+        }
+        let btn = document.getElementById("submitOrderBtn");
+        btn.disabled = true;
+        btn.innerText = "提交中...";
+        try {
+            let res = await submitOrder(currentUser.id);
+            if(res.code === 200){
+                alert(`订单提交成功！订单号：${res.data.orderNo}\n总金额：¥${res.data.totalPrice}`);
+                loadCart();
+            } else {
+                alert(res.msg);
+            }
+        } catch(e){
+            alert(e.userMessage || "提交订单失败，请重试");
+        }
+        btn.disabled = false;
+        btn.innerText = "提交订单结算";
+    }
+</script>
+</body>
+</html>

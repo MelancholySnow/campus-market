@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的订单 - 校园二手交易平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .nav-bg{background-color: #198754;}
+        .tab-item{cursor:pointer;}
+        .tab-active{border-bottom:3px solid #198754;color:#198754;}
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark nav-bg">
+    <div class="container">
+        <a class="navbar-brand" href="index.html">校园二手交易平台</a>
+        <ul class="navbar-nav me-auto">
+            <li class="nav-item"><a class="nav-link" href="index.html">首页</a></li>
+            <li class="nav-item"><a class="nav-link" href="publish.html">发布闲置</a></li>
+            <li class="nav-item"><a class="nav-link" href="cart.html">购物车</a></li>
+            <li class="nav-item"><a class="nav-link active" href="order.html">我的订单</a></li>
+            <li class="nav-item"><a class="nav-link" href="user.html">个人中心</a></li>
+        </ul>
+        <span class="navbar-text text-white me-3" id="navUserInfo"></span>
+        <button class="btn btn-outline-light btn-sm" onclick="logout()">退出登录</button>
+    </div>
+</nav>
+
+<div class="container mt-5">
+    <div class="d-flex fs-5 border-bottom mb-4">
+        <div class="me-5 py-2 tab-item tab-active" onclick="changeTab(1)">📦 我的订单</div>
+        <div class="me-5 py-2 tab-item" onclick="changeTab(2)">🔄 退款管理</div>
+    </div>
+
+    <!-- 订单列表 -->
+    <div id="tab1">
+        <div id="orderBody"></div>
+    </div>
+
+    <!-- 退货管理 -->
+    <div id="tab2" class="d-none">
+        <div class="d-flex fs-6 border-bottom mb-3">
+            <div class="me-4 py-1 tab-item tab-active" id="returnSubTab1" onclick="switchReturnTab('buyer')">我申请的退货</div>
+            <div class="me-4 py-1 tab-item" id="returnSubTab2" onclick="switchReturnTab('seller')">买家向我申请</div>
+        </div>
+        <div id="returnBody"></div>
+    </div>
+</div>
+
+<!-- 申请退货弹窗 -->
+<div class="modal fade" id="returnModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#dc3545;color:#fff;">
+        <h5 class="modal-title">📝 申请退货</h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label">订单号</label>
+            <input type="text" class="form-control" id="returnOrderNo" disabled>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">退货理由 <span class="text-danger">*</span></label>
+            <textarea class="form-control" id="returnReason" rows="4" placeholder="请详细说明退货原因（至少5个字）"></textarea>
+            <div class="form-text">请如实填写退货原因，卖家审核通过后即可退货。</div>
+        </div>
+        <input type="hidden" id="returnOrderId">
+        <button id="submitReturnBtn" class="btn btn-danger w-100">提交退货申请</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 卖家处理退货弹窗 -->
+<div class="modal fade" id="handleReturnModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#198754;color:#fff;">
+        <h5 class="modal-title">🔍 处理退货申请</h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label">订单号</label>
+            <input type="text" class="form-control" id="handleOrderNo" disabled>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">买家理由</label>
+            <textarea class="form-control" id="handleBuyerReason" rows="3" disabled></textarea>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">您的回复 <span class="text-danger">*</span></label>
+            <textarea class="form-control" id="handleReply" rows="3" placeholder="请输入处理意见..."></textarea>
+        </div>
+        <input type="hidden" id="handleReturnId">
+        <div class="d-flex gap-2">
+            <button class="btn btn-success flex-fill" onclick="doHandleReturn('approve')">✅ 同意退货</button>
+            <button class="btn btn-danger flex-fill" onclick="doHandleReturn('reject')">❌ 拒绝退货</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="common.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let currentReturnRole = 'buyer';
+
+    window.onload = function(){
+        if(!currentUser){
+            alert("请先登录");
+            window.location.href = "login.html";
+            return;
+        }
+        document.getElementById("navUserInfo").innerText = '👋 ' + currentUser.nickname;
+        renderOrders();
+        renderReturnList();
+    }
+
+    function changeTab(num){
+        document.querySelectorAll(".tab-item").forEach((el, idx) => {
+            el.classList.remove("tab-active");
+            // 只处理顶层tab
+            if(el.parentElement.classList.contains('border-bottom') && el.parentElement.classList.contains('fs-5')){
+                if(idx === num - 1) el.classList.add("tab-active");
+            }
+        });
+        document.getElementById("tab1").classList.add("d-none");
+        document.getElementById("tab2").classList.add("d-none");
+        document.getElementById("tab" + num).classList.remove("d-none");
+        if(num === 2) renderReturnList();
+    }
+
+    function switchReturnTab(role){
+        currentReturnRole = role;
+        document.getElementById("returnSubTab1").classList.remove("tab-active");
+        document.getElementById("returnSubTab2").classList.remove("tab-active");
+        if(role === 'buyer'){
+            document.getElementById("returnSubTab1").classList.add("tab-active");
+        } else {
+            document.getElementById("returnSubTab2").classList.add("tab-active");
+        }
+        renderReturnList();
+    }
+
+    // ========== 渲染订单列表 ==========
+    async function renderOrders(){
+        let list = await getOrderList(currentUser.id);
+        let html = "";
+        if(!list || list.length === 0){
+            html = '<div class="alert alert-info">暂无订单，去<a href="index.html" class="alert-link">首页</a>逛逛吧</div>';
+        }else{
+            list.forEach(order => {
+                let statusColor = 'text-success';
+                if(order.status === '已退款') statusColor = 'text-secondary';
+                else if(order.status === '已支付') statusColor = 'text-primary';
+
+                let timeStr = (order.createTime || '').substring(0, 16);
+                let itemsHtml = order.items.map(item =>
+                    `<span class="badge bg-light text-dark me-1">${item.goodsName} ×${item.count} (¥${item.goodsPrice})</span>`
+                ).join('');
+
+                html += `
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span class="small">订单号：${order.orderNo}</span>
+                        <span class="${statusColor} fw-bold">${order.status}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">${itemsHtml}</div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">${timeStr}</small>
+                            <div>
+                                <strong class="text-danger me-3">合计：¥${order.totalPrice}</strong>
+                                ${order.status === '已支付' ? `<button class="btn btn-sm btn-outline-danger" onclick="openReturnModal(${order.id}, '${order.orderNo}')">申请退款</button>` : ''}
+                                <button class="btn btn-sm btn-outline-secondary" onclick="checkReturnStatusForOrder(${order.id})">查看退货状态</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+        }
+        document.getElementById("orderBody").innerHTML = html;
+    }
+
+    // ========== 退货申请 ==========
+    function openReturnModal(orderId, orderNo){
+        document.getElementById("returnOrderId").value = orderId;
+        document.getElementById("returnOrderNo").value = orderNo;
+        document.getElementById("returnReason").value = '';
+        let modal = new bootstrap.Modal(document.getElementById("returnModal"));
+        modal.show();
+    }
+
+    document.getElementById("submitReturnBtn").addEventListener("click", async function(){
+        let orderId = document.getElementById("returnOrderId").value;
+        let reason = document.getElementById("returnReason").value.trim();
+
+        if(!reason || reason.length < 5){
+            alert("退货理由至少5个字");
+            return;
+        }
+        if(reason.length > 500){
+            alert("退货理由不能超过500字");
+            return;
+        }
+
+        let btn = this;
+        btn.disabled = true;
+        btn.innerText = "提交中...";
+        try {
+            let res = await requestReturn(currentUser.id, parseInt(orderId), reason);
+            alert(res.msg);
+            if(res.code === 200){
+                bootstrap.Modal.getInstance(document.getElementById("returnModal")).hide();
+                renderOrders();
+                renderReturnList();
+            }
+        } catch(e){
+            alert(e.userMessage || "提交失败");
+        }
+        btn.disabled = false;
+        btn.innerText = "提交退货申请";
+    });
+
+    // ========== 渲染退货列表 ==========
+    async function renderReturnList(){
+        let list = await getReturnList(currentUser.id, currentReturnRole);
+        let html = "";
+
+        if(!list || list.length === 0){
+            html = '<div class="alert alert-info">暂无退货申请记录</div>';
+        }else{
+            list.forEach(item => {
+                let statusBadge = '';
+                if(item.status === 'pending') statusBadge = '<span class="badge bg-warning">待审核</span>';
+                else if(item.status === 'approved') statusBadge = '<span class="badge bg-success">已同意</span>';
+                else if(item.status === 'rejected') statusBadge = '<span class="badge bg-danger">已拒绝</span>';
+
+                let timeStr = (item.createTime || '').substring(0, 16);
+
+                if(currentReturnRole === 'buyer'){
+                    // 买家视角
+                    html += `
+                    <div class="card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span class="small">订单号：${item.orderNo || ''}</span>
+                            ${statusBadge}
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-1"><strong>退货理由：</strong>${item.reason}</p>
+                            ${item.sellerReply ? `<p class="mb-1"><strong>卖家回复：</strong><span class="text-primary">${item.sellerReply}</span></p>` : ''}
+                            <small class="text-muted">申请时间：${timeStr}</small>
+                        </div>
+                    </div>`;
+                } else {
+                    // 卖家视角
+                    html += `
+                    <div class="card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span class="small">订单号：${item.orderNo || ''} | 买家：${item.buyerName || '用户'+item.buyerId}</span>
+                            ${statusBadge}
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-1"><strong>退货理由：</strong>${item.reason}</p>
+                            ${item.sellerReply ? `<p class="mb-1"><strong>我的回复：</strong>${item.sellerReply}</p>` : ''}
+                            <small class="text-muted">申请时间：${timeStr}</small>
+                            ${item.status === 'pending' ? `
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-success me-2" onclick="openHandleModal(${item.id}, '${item.orderNo || ''}', '${(item.reason || '').replace(/'/g, "\\'").replace(/\n/g, ' ')}')">处理申请</button>
+                            </div>` : ''}
+                        </div>
+                    </div>`;
+                }
+            });
+        }
+        document.getElementById("returnBody").innerHTML = html;
+    }
+
+    // ========== 卖家处理退货 ==========
+    function openHandleModal(returnId, orderNo, reason){
+        document.getElementById("handleReturnId").value = returnId;
+        document.getElementById("handleOrderNo").value = orderNo;
+        document.getElementById("handleBuyerReason").value = reason;
+        document.getElementById("handleReply").value = '';
+        let modal = new bootstrap.Modal(document.getElementById("handleReturnModal"));
+        modal.show();
+    }
+
+    async function doHandleReturn(action){
+        let returnId = document.getElementById("handleReturnId").value;
+        let reply = document.getElementById("handleReply").value.trim();
+
+        if(action === 'reject' && !reply){
+            alert("拒绝退货请填写理由");
+            return;
+        }
+
+        let btn = event.target;
+        btn.disabled = true;
+        try {
+            let res = await handleReturn(parseInt(returnId), action, currentUser.id, reply);
+            alert(res.msg);
+            if(res.code === 200){
+                bootstrap.Modal.getInstance(document.getElementById("handleReturnModal")).hide();
+                renderOrders();
+                renderReturnList();
+            }
+        } catch(e){
+            alert(e.userMessage || "处理失败");
+        }
+        btn.disabled = false;
+    }
+
+    // ========== 查看退货状态 ==========
+    async function checkReturnStatusForOrder(orderId){
+        let result = await checkReturnStatus(orderId, currentUser.id);
+        if(result){
+            let statusText = result.status === 'pending' ? '待审核' : result.status === 'approved' ? '已同意' : '已拒绝';
+            let msg = `退货状态：${statusText}\n理由：${result.reason}`;
+            if(result.sellerReply) msg += `\n卖家回复：${result.sellerReply}`;
+            alert(msg);
+        } else {
+            alert("该订单暂无退货申请记录");
+        }
+    }
+</script>
+</body>
+</html>

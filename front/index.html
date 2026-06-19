@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园二手闲置交易平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .nav-bg{background-color: #198754;}
+        .card:hover{transform: translateY(-5px);transition: 0.3s;box-shadow: 0 5px 15px #ccc;}
+        .goods-img{height:200px;object-fit:cover;}
+        .category-item{padding:15px;border-radius:8px;text-align:center;}
+        .category-item:hover{background:#e8f5ee;cursor:pointer;}
+    </style>
+</head>
+<body>
+<!-- 导航栏 -->
+<nav class="navbar navbar-expand-lg navbar-dark nav-bg">
+    <div class="container">
+        <a class="navbar-brand" href="index.html">校园二手交易平台</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link active" href="index.html">首页</a></li>
+                <li class="nav-item"><a class="nav-link" href="publish.html">发布闲置</a></li>
+                <li class="nav-item"><a class="nav-link" href="cart.html">购物车</a></li>
+                <li class="nav-item"><a class="nav-link" href="order.html">我的订单</a></li>
+                <li class="nav-item"><a class="nav-link" href="user.html">个人中心</a></li>
+            </ul>
+            <div id="navUserArea">
+                <a href="login.html" class="btn btn-light me-2">登录</a>
+                <a href="register.html" class="btn btn-outline-light">注册</a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- 轮播图 -->
+<div class="container mt-3">
+    <div id="carouselExample" class="carousel slide rounded overflow-hidden">
+        <div class="carousel-inner">
+            <div class="carousel-item active">
+                <img src="https://picsum.photos/1200/300?random=1" class="d-block w-100" alt="">
+            </div>
+            <div class="carousel-item">
+                <img src="https://picsum.photos/1200/300?random=2" class="d-block w-100" alt="">
+            </div>
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#carouselExample" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon"></span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#carouselExample" data-bs-slide="next">
+            <span class="carousel-control-next-icon"></span>
+        </button>
+    </div>
+</div>
+
+<!-- 搜索框 -->
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="input-group">
+                <input type="text" class="form-control" id="searchInput" placeholder="搜索商品名称、描述、分类..." onkeydown="if(event.key==='Enter')doSearch()">
+                <button class="btn btn-success" onclick="doSearch()">🔍 搜索</button>
+            </div>
+            <div id="searchTip" class="form-text text-center d-none">
+                正在搜索：<span id="searchKeyword"></span>
+                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="clearSearch()">✕ 清除搜索</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 分类区域（已加点击事件） -->
+<div class="container mt-5">
+    <h5 class="mb-3">物品分类</h5>
+    <div class="row g-3">
+        <div class="col-2 category-item shadow-sm" onclick="filterByCategory('全部')">🏠 全部商品</div>
+        <div class="col-2 category-item shadow-sm" onclick="filterByCategory('图书教材')">📚 图书教材</div>
+        <div class="col-2 category-item shadow-sm" onclick="filterByCategory('数码产品')">💻 数码产品</div>
+        <div class="col-2 category-item shadow-sm" onclick="filterByCategory('衣物鞋帽')">👔 衣物鞋帽</div>
+        <div class="col-2 category-item shadow-sm" onclick="filterByCategory('生活用品')">🛋️ 生活用品</div>
+        <div class="col-2 category-item shadow-sm" onclick="filterByCategory('运动器材')">🏃 运动器材</div>
+        <div class="col-2 category-item shadow-sm mt-3" onclick="filterByCategory('其他闲置')">📦 其他闲置</div>
+    </div>
+</div>
+
+<!-- 商品列表（动态渲染） -->
+<div class="container mt-5 mb-5">
+    <h5 class="mb-3">最新闲置</h5>
+    <div class="row g-4" id="goodsList">
+        <!-- 自动渲染 -->
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="common.js"></script>
+<script>
+    // 渲染商品
+    async function renderGoods(category = '全部') {
+        let goodsList;
+        if(category === '全部'){
+            goodsList = await getGoodsList();
+        }else{
+            goodsList = await getGoodsByCategory(category);
+        }
+
+        let html = '';
+        if (!goodsList || goodsList.length === 0) {
+            html = '<div class="alert alert-info text-center">暂无该分类商品</div>';
+        } else {
+            goodsList.forEach(item => {
+                html += `
+                <div class="col-lg-3 col-md-4 col-sm-6">
+                    <div class="card">
+                        <img src="${resolveImgUrl(item.img)}" class="card-img-top goods-img">
+                        <div class="card-body">
+                            <h6 class="card-title">${item.name}</h6>
+                            <p class="text-danger fs-5">¥${item.price}</p>
+                            <p class="text-muted small">发布人：${item.author}</p>
+                            <a href="detail.html?id=${item.id}" class="btn btn-success w-100">查看详情</a>
+                        </div>
+                    </div>
+                </div>`;
+            });
+        }
+        document.getElementById("goodsList").innerHTML = html;
+    }
+
+    // 分类点击
+    function filterByCategory(category) {
+        // 清除搜索状态
+        document.getElementById("searchInput").value = '';
+        document.getElementById("searchTip").classList.add("d-none");
+        renderGoods(category);
+    }
+
+    // 执行搜索
+    async function doSearch() {
+        let keyword = document.getElementById("searchInput").value.trim();
+        if (!keyword) {
+            clearSearch();
+            return;
+        }
+        let results = await searchGoods(keyword);
+        renderSearchResults(results, keyword);
+    }
+
+    // 清除搜索
+    function clearSearch() {
+        document.getElementById("searchInput").value = '';
+        document.getElementById("searchTip").classList.add("d-none");
+        renderGoods();
+    }
+
+    // 渲染搜索结果
+    function renderSearchResults(goodsList, keyword) {
+        document.getElementById("searchKeyword").innerText = keyword;
+        document.getElementById("searchTip").classList.remove("d-none");
+
+        let html = '';
+        if (!goodsList || goodsList.length === 0) {
+            html = '<div class="alert alert-warning text-center">未找到与「' + keyword + '」相关的商品</div>';
+        } else {
+            goodsList.forEach(item => {
+                html += `
+                <div class="col-lg-3 col-md-4 col-sm-6">
+                    <div class="card">
+                        <img src="${resolveImgUrl(item.img)}" class="card-img-top goods-img">
+                        <div class="card-body">
+                            <h6 class="card-title">${item.name}</h6>
+                            <p class="text-danger fs-5">¥${item.price}</p>
+                            <p class="text-muted small">发布人：${item.author}</p>
+                            <a href="detail.html?id=${item.id}" class="btn btn-success w-100">查看详情</a>
+                        </div>
+                    </div>
+                </div>`;
+            });
+        }
+        document.getElementById("goodsList").innerHTML = html;
+    }
+
+    // 页面加载
+    window.onload = function () {
+        updateNavUser();
+        renderGoods();
+    }
+
+    // 导航栏登录状态检测
+    function updateNavUser(){
+        let area = document.getElementById("navUserArea");
+        if(currentUser){
+            area.innerHTML = `
+                <span class="text-white me-3">👋 ${currentUser.nickname}</span>
+                <button class="btn btn-outline-light btn-sm" onclick="logout()">退出登录</button>
+            `;
+        }
+    }
+</script>
+</body>
+</html>
